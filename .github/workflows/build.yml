@@ -9,6 +9,7 @@ jobs:
             -   uses: actions/checkout@v3
                 with:
                     fetch-depth: 0 # Need to fetch all for proper history
+                    submodules: recursive # 拉取git子模块
             -   name: Collect build info
                 id: info
                 uses: actions/github-script@v6
@@ -38,6 +39,9 @@ jobs:
                 with:
                     dotnet-version: "8.0.x"
             -   name: Build
+                env:
+                    # 关键：忽略 NU1605 包降级警告，不把它当作错误
+                    DOTNET_CLI_WARNASERROR: "!NU1605"
                 run: |
                     ./build.sh --target Publish --build-type ${{ steps.info.outputs.build_type }} --build-id ${{ steps.info.outputs.build_id }} --last-build-commit \"${{ steps.last_successful_commit.outputs.commit_hash }}\" --nuget-api-key \"${{ secrets.BEPIN_DEV_NUGET_KEY }}\"
             -   name: Upload to BepinBuilds
@@ -59,7 +63,7 @@ jobs:
                     BEPINEX_DISCORD_WEBHOOK: ${{ secrets.BEPINEX_DISCORD_WEBHOOK }}
                 if: ${{ steps.info.outputs.build_type == 'BleedingEdge' && env.BEPINEX_DISCORD_WEBHOOK != null }}
                 with:
-                    url: ${{ secrets.BEPINEX_DISCORD_WEBHOOK }}
+                    url: ${{ steps.info.outputs.build_type }}
                     body: |
                         {
                           "embeds": [
@@ -76,4 +80,3 @@ jobs:
                 with:
                     path: "./bin/dist/*.zip"
                     name: "BepInEx_CI_${{ steps.info.outputs.build_type }}_${{ steps.info.outputs.sha_short }}_${{ steps.info.outputs.build_id || 0 }}"
-      
